@@ -1,14 +1,65 @@
 FROM java:8-jdk
 
-RUN apt-get update && apt-get install -y wget git curl zip && rm -rf /var/lib/apt/lists/*
+RUN dpkg -S /var/lib/apt/lists/*
+WORKDIR /var/lib/apt
+RUN mv lists lists.old
+RUN mkdir -p lists/partial
+
+RUN apt-get update && apt-get install -y wget git curl zip php5 php5-cli php5-mysql php5-xdebug php-pear ant
+
+WORKDIR /opt
+
+#Install Composer
+RUN curl -sS https://getcomposer.org/installer | php
+RUN chmod +x composer.phar
+RUN mv composer.phar /usr/local/bin/composer 
+
+#Install PHPUnit
+RUN wget https://phar.phpunit.de/phpunit.phar
+RUN chmod +x phpunit.phar
+RUN mv phpunit.phar /usr/local/bin/phpunit
+
+#Install CodeSniffer
+RUN pear install PHP_CodeSniffer-2.3.4
+
+#Install PHPLOC
+RUN wget https://phar.phpunit.de/phploc.phar
+RUN chmod +x phploc.phar
+RUN mv phploc.phar /usr/local/bin/phploc
+
+#Install PHP Depend
+RUN wget http://static.pdepend.org/php/latest/pdepend.phar
+RUN chmod +x pdepend.phar
+RUN mv pdepend.phar /usr/local/bin/pdepend
+
+#Install PHP Mess Detector
+RUN wget -c http://static.phpmd.org/php/latest/phpmd.phar
+RUN chmod +x phpmd.phar
+RUN mv phpmd.phar /usr/local/bin/phpmd
+
+#Install Copy/Paste Detector
+RUN wget https://phar.phpunit.de/phpcpd.phar
+RUN chmod +x phpcpd.phar
+RUN mv phpcpd.phar /usr/local/bin/phpcpd
+
+WORKDIR /
 
 ENV JENKINS_HOME /var/jenkins_home
 ENV JENKINS_SLAVE_AGENT_PORT 50000
+
+WORKDIR $JENKINS_HOME/jobs
+RUN mkdir php-template
+WORKDIR php-template
+RUN wget https://raw.github.com/sebastianbergmann/php-jenkins-template/master/config.xml
+WORKDIR $JENKINS_HOME/jobs
+
 
 # Jenkins is ran with user `jenkins`, uid = 1000
 # If you bind mount a volume from host/volume from a data container, 
 # ensure you use same uid
 RUN useradd -d "$JENKINS_HOME" -u 1000 -m -s /bin/bash jenkins
+
+RUN chown -R jenkins:jenkins php-template/
 
 # Jenkins home directoy is a volume, so configuration and build history 
 # can be persisted and survive image upgrades
@@ -52,4 +103,6 @@ COPY jenkins.sh /usr/local/bin/jenkins.sh
 ENTRYPOINT ["/bin/tini", "--", "/usr/local/bin/jenkins.sh"]
 
 # from a derived Dockerfile, can use `RUN plugin.sh active.txt` to setup /usr/share/jenkins/ref/plugins from a support bundle
-COPY plugins.sh /usr/local/bin/plugins.sh
+COPY plugins-php.txt /opt/plugins-php.txt
+COPY plugins.sh /usr/bin/plugins
+RUN plugins /opt/plugins-php.txt
