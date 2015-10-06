@@ -5,7 +5,7 @@ WORKDIR /var/lib/apt
 RUN mv lists lists.old
 RUN mkdir -p lists/partial
 
-RUN apt-get update && apt-get install -y wget git curl zip php5 php5-cli php5-mysql php5-xdebug php-pear ant
+RUN apt-get update && apt-get install -y wget git curl zip php5 php5-cli php5-mysql php5-xdebug php-pear php5-curl ant
 
 WORKDIR /opt
 
